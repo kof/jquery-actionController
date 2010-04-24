@@ -92,4 +92,4 @@ actionController.prototype = {
     }    
 };
 
-})(jQuery, Array.prototype.slice);		
+})(jQuery, Array.prototype.slice);
