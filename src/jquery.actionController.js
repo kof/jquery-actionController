@@ -14,13 +14,22 @@
 
 $.fn.actionController = function( controller, options ) {
     return this.each(function(){
-        var instance = $.data(this, 'actionController') || $.data(this, 'actionController', new actionController($(this), controller, options));
+        var instance = $.data(this, 'actionController') || $.data(this, 'actionController', new $.actionController($(this), controller, options));
         // its a method call 
         typeof controller == 'string' && instance[controller](options);
     });
 };
 
-$.fn.actionController.defaults = {
+$.actionController = function( $container, controller, options ) {
+    this.enabled = true;    
+    this.$container = $container;
+    this.controller = controller;
+    var s = this.settings = $.extend({}, $.actionController.defaults, options);
+    s.history && $.fn.historyManager && $container.historyManager();        
+    $('[' + s.actionAttr + ']', $container).live(s.events, $.proxy( this, 'handler'));    
+};
+
+$.actionController.defaults = {
     actionPrefix: '_',
     actionAttr: 'data-action',
     paramsAttr: 'data-params',
@@ -31,16 +40,7 @@ $.fn.actionController.defaults = {
     context: 'element' // controller || element
 };
 
-function actionController( $container, controller, options ) {
-    this.enabled = true;    
-    this.$container = $container;
-    this.controller = controller;
-    var s = this.settings = $.extend({}, $.fn.actionController.defaults, options);
-    s.history && $.fn.historyManager && $container.historyManager();        
-    $('[' + s.actionAttr + ']', $container).live(s.events, $.proxy( this, 'handler'));    
-}
-
-actionController.prototype = {
+$.actionController.prototype = {
     destroy: function() {
         $('[' + this.settings.actionAttr + ']', this.$container).die(this.events, this.handler);
         this.$container.removeData('actionController');    
