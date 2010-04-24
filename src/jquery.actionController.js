@@ -15,7 +15,7 @@
 $.fn.actionController = function( controller, options ) {
     return this.each(function(){
         var instance = $.data(this, 'actionController') || $.data(this, 'actionController', new actionController($(this), controller, options));
-        // its a method call
+        // its a method call 
         typeof controller == 'string' && instance[controller](options);
     });
 };
@@ -56,7 +56,6 @@ actionController.prototype = {
     
     handler: function( e ) {
         if ( !this.enabled ) return;
-        console.log(this);
         var s = this.settings,
             $target = $(e.currentTarget),
             args = arguments,
