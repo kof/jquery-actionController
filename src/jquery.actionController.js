@@ -1,95 +1,150 @@
 /*
- * actionController - Plugin for jQuery
+ * jQuery actionController 0.0.4
  * 
- * @depends: 
- *     jquery.js
- *     jquery.historyManager.js (optional)
- * @version 1.4
- * @license Dual licensed under the MIT and GPL licenses.
- * @author  Oleg Slobodskoi aka Kof
- * @website http://jsui.de
+ * @author Oleg Slobodskoi
+ *
+ * Dual licensed under the MIT (MIT-LICENSE.txt)
+ * and GPL (GPL-LICENSE.txt) licenses.
+ *
+ * Depends:
+ *  jquery.js
+ *  
  */
+(function( $, window, document ) {
 
-(function($, slice){
+var plugin = "actionController",
+    doc = $(document),
+    events = {},
+    slice = Array.prototype.slice;
 
-$.fn.actionController = function( controller, options ) {
-    return this.each(function(){
-        var instance = $.data(this, 'actionController') || $.data(this, 'actionController', new actionController($(this), controller, options));
-        // its a method call 
-        typeof controller == 'string' && instance[controller](options);
-    });
-};
+var defaults = {
+        actionAttr: "data-action",
+        paramsAttr: "data-params",
+        historyAttr: "data-history",
+        actionPrefix: "",
+        defaultAction: "action",
+        events: "click",
+        context: "element", // object || "element" || "controller"
+        disabled: false     
+    };
+    
+function eventsDelegator( event ) {
 
-$.fn.actionController.defaults = {
-    actionPrefix: '_',
-    actionAttr: 'data-action',
-    paramsAttr: 'data-params',
-    historyAttr: 'data-history',
-    defaultAction: 'action',
-    events: 'click',
-    history: false,
-    context: 'element' // controller || element
-};
+    var element = $(this),
+        controllerElement = element.closest( ":data(" + plugin + ")" );
+        
+    if ( !controllerElement.length ) {
+        return;
+    }   
+    
+    var args = arguments,
+        o = controllerElement.data( plugin ).options;
+    
+    if ( o.disabled ) {
+        return;
+    }    
+        
+    var params = element.attr( o.paramsAttr ),
+        // click -> Click
+        actionSuffix = event.type.substr( 0, 1 ).toUpperCase() + event.type.substr( 1 ),
+        handler = o.controller[o.actionPrefix + $.trim( element.attr(o.actionAttr) ) + actionSuffix],
+        defaultHandler = o.controller[o.actionPrefix + o.defaultAction + actionSuffix],
+        context = o.context === 'element' ? element[0] : ( o.context === 'controller' ? o.controller : o.context );
+        
+    if ( params ) {
+        // convert params to array and trim whitespaces
+        params = $.map( params.split( ',' ), function( param, i ) { 
+            return $.trim(param); 
+        });
+        
+        // convert arguments to true array and add params array
+        params = slice.call(args, 0).concat( params );        
+    } else {
+        params = args;
+    }   
 
-function actionController( $container, controller, options ) {
-    this.enabled = true;    
-    this.$container = $container;
-    this.controller = controller;
-    var s = this.settings = $.extend({}, $.fn.actionController.defaults, options);
-    s.history && $.fn.historyManager && $container.historyManager();        
-    $('[' + s.actionAttr + ']', $container).live(s.events, $.proxy( this, 'handler'));    
+    if ( typeof defaultHandler === 'function' && defaultHandler.apply( context, params ) === false ) {
+        return false;
+    }
+    
+    if ( typeof handler === 'function' ) {
+        return handler.apply( context, params );
+    }     
 }
 
-actionController.prototype = {
-    destroy: function() {
-        $('[' + this.settings.actionAttr + ']', this.$container).die(this.events, this.handler);
-        this.$container.removeData('actionController');    
-    },
+
+$.fn[plugin] = function( method, options ) {
     
-    disable: function() {
-        this.enabled = false;    
+    if ( typeof method === "object" ) {
+        options = method;
+        method =  null;
+    }
+    
+    var ret;
+    
+    this.each( function() {
+        
+        var inst = $.data( this, plugin ) || $.data( this, plugin, new $[plugin]( this, options ) );        
+        
+        if ( method ) {
+            ret = inst[method]( options );                
+        }
+    });
+    
+    return ret || this; 
+};
+
+$[plugin] = function( element, options ) {
+
+    var o = $.extend( {}, $[plugin].defaults, options ),
+        types = "";
+    
+    this.element = $(element);
+    this.options = o;
+    
+    $.each( o.events.split(" "), function( i, type ) {
+        if ( events[type] && events[type] > 0 ) {
+            events[type]++;
+        } else {
+            events[type] = 1;
+            types += type + " ";
+        }
+    });
+    
+    types && doc.delegate( "[" + o.actionAttr + "]", types, eventsDelegator );
+};
+
+$[plugin].defaults = defaults;
+
+$[plugin].prototype = {
+    
+    destroy: function() {
+        
+        var o = this.options;
+
+        $.each( o.events.split(" "), function( i, type ) {
+            if ( events[type] > 1 ) {
+                events[type]--;
+            // undelegate the event if nobody needs it
+            } else {
+                doc.undelegate( "[" + o.actionAttr + "]", type, eventsDelegator );    
+            }            
+        });
+        
+        this.element.removeData( plugin );
     },
     
     enable: function() {
-        this.enabled = true;    
+        this.options.disabled = false;    
     },
     
-    handler: function( e ) {
-        if ( !this.enabled ) return;
-        var s = this.settings,
-            $target = $(e.currentTarget),
-            args = arguments,
-            params = $target.attr(s.paramsAttr),
-            actionSuffix = e.type.substr(0,1).toUpperCase() + e.type.substr(1),
-            action = this.controller[s.actionPrefix + $.trim($target.attr(s.actionAttr)) + actionSuffix],
-            defaultAction = this.controller[s.actionPrefix + s.defaultAction + actionSuffix],
-            context = s.context == 'controller' ? this.controller : $target[0];
-        
-        if ( params ) {
-            params = $.map(params.split(','), function(param, i){ 
-                return $.trim(param); 
-            });
-            args = slice.call(args, 0).concat( params );        
-        }
-        
-                    
-        if ( $.isFunction(defaultAction) && defaultAction.apply(context, args) === false ) {
-            return false;
-        }
-    
-        if ( $.isFunction(action) ) {
-            if ( s.history ) {
-                var historyMethod = $.trim($target.attr(s.historyAttr));
-                if (!e.historyHandled && historyMethod) {
-                    $target.historyManager(historyMethod , function historyHandler(){
-                        action.apply(context, args);        
-                    });
-                    return false;
-                } 
-            }
-            return action.apply(context, args);        
-        }      
+    disable: function() {
+        this.options.disabled = true;    
     }    
 };
 
-})(jQuery, Array.prototype.slice);		
+$.expr[ ":" ].data = function( elem, i, match ) {
+	return !!$.data( elem, match[ 3 ] );
+};
+
+})( jQuery, window, document );
