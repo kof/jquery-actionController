@@ -1,6 +1,6 @@
 ## About
 
-Idea is to separate css classes/ids and event handlers, because ids and classes are used for styling in css and using it in javascript code too cause to tripple dependency between css, html and javascript.
+Idea is to separate css classes/ids and event handlers, because ids and classes are used for styling in css and using them in javascript code too cause to tripple dependency between css, html and javascript.
 This becomes to be hard to maintain, especially if you let designers to do css.
 To resolve it actionController uses "data-action" html attribute (it can be configured to any other).
 
